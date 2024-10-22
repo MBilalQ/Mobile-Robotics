@@ -10,7 +10,7 @@ dd = DifferentialDrive(R,L);
 
 %% Simulation parameters
 sampleTime = 0.1;               % Sample time [s]
-tVec = 0:sampleTime:12;         % Time array
+tVec = 0:sampleTime:7;         % Time array
 
 initPose = [0;0;0];             % Initial pose (x y theta)
 pose = zeros(3,numel(tVec));    % Pose matrix
@@ -50,26 +50,23 @@ function [vRef, wRef] = PurePursuit(pose, waypoints, lookaheadDist, linearVel)
    
     goal = waypoints(closest,:);
 
-    goalRel = goal - currentPos';
+    goalDiff = goal - currentPos';
     
     % Rotate the goal relative to the Robots frame
-    goalRobotFrame = [cos(theta), sin(theta); ...
-                      -sin(theta), cos(theta)] * goalRel';
+    goalRobotFrame = [cos(theta), sin(theta); 
+                      -sin(theta), cos(theta)] * goalDiff';
     
-    % Calculate the curvature
+    % Calculate the angular velocity
     y = goalRobotFrame(2);
     w = 2 * y / (lookaheadDist^2);
     wRef = w * linearVel;
     vRef = linearVel; 
 
 end
-
-%%controller = controllerPurePursuit;
-%%controller = customPurePursuit;
 Waypoints = waypoints;
-LookaheadDistance = 0.4;
-DesiredLinearVelocity = 0.95;
-MaxAngularVelocity = 0.25;
+LookaheadDistance = 0.8;
+DesiredLinearVelocity = 2.5;
+%MaxAngularVelocity = 0.25;
 
 %% Simulation loop
 close all
