@@ -82,3 +82,12 @@ plot(t, phi_r - phi_actual);
 title('Error in Phi');
 xlabel('Time');
 ylabel('Phi Error');
+
+
+%comments on performance:
+% The error tend to change when we increase the kp as this is a relatively
+% small path with small adjustments, the error of y was able to converge to
+% 0 easily as it was not supposed to change with time so it had same
+% desired overall making it easiest to attain the 0 error, meanwhile phi
+% eventually was ably to correct the error, as x was changing constantly,
+% so it had issues in resolving its error.
