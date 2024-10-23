@@ -1,0 +1,80 @@
+function [ref_poses] = generateRefTraj(pathType, sampleTime, endTime)
+%   The function generates waypoints for different path types.
+% The reference pose orientation is in degrees.
+tVec = [0:sampleTime:endTime];
+switch lower(pathType)
+    case 'circle'
+        speed = 10;                 % Speed in degrees/second
+        radius = 2.5;
+        center = [0, radius];        
+        ref_poses = [radius*cosd(speed*tVec-90)+center(1); radius*sind(speed*tVec-90)+center(2)];        
+    case 'wave'
+        ref_poses = [tVec; sin(tVec)];
+end
+
+end
+
+%% Define Vehicle
+R = 0.1;                % Wheel radius [m]
+L = 0.5;                % Wheelbase [m]
+
+%% Simulation parameters
+sampleTime = 0.1;               % Sample time [s]
+endTime = 15;                   % End Simulation time [s]
+tVec = 0:sampleTime:endTime;    % Time array
+
+initPose = [0;0;0];             % Initial pose (x, y, theta)
+pose = zeros(3,numel(tVec));    % Pose matrix
+pose(:,1) = initPose;
+
+% Define Reference Trajectory at sample times
+refPosition = generateRefTraj('circle',sampleTime, 15); % For circle
+% refPosition = generateRefTraj('wave',sampleTime, 15);  % Uncomment for wave
+
+% Create visualizer
+viz = Visualizer2D;
+viz.hasWaypoints = false;
+viz(initPose);
+hold on;
+% Reference trajectory is plotted using a red dashed line
+plot(refPosition(1,:),refPosition(2,:),'r-.');   
+
+% Wheel position offset for I/O linearization
+b = 0.25; % Offset from midpoint of wheels to where the robot's pose is being tracked
+
+%% Simulation loop
+r = rateControl(1/sampleTime);
+for idx = 2:numel(tVec) 
+    % Get the current pose
+    currentPose = pose(:,idx-1);
+    
+    % Reference position
+    refX = refPosition(1,idx-1);
+    refY = refPosition(2,idx-1);
+    
+    % Compute the error between current and reference positions
+    e_x = refX - currentPose(1);
+    e_y = refY - currentPose(2);
+    
+    % Calculate desired velocities
+    v_desired = sqrt(e_x^2 + e_y^2);
+    theta_desired = atan2(e_y, e_x);
+    w_desired = (theta_desired - currentPose(3)) / sampleTime;  % Approximate angular velocity
+    
+    % Compute the wheel speeds using I/O feedback linearization
+    wL = (v_desired - (L/2) * w_desired) / R;
+    wR = (v_desired + (L/2) * w_desired) / R;
+    
+    % Compute the actual velocities for simulation
+    v = 0.5 * R * (wL + wR);
+    w = (wR - wL) * R / L;
+    velB = [v; 0; w];  % Body velocities [vx; vy; w]
+    vel = bodyToWorld(velB, currentPose);  % Convert from body to world frame
+    
+    % Perform forward discrete integration step
+    pose(:,idx) = currentPose + vel * sampleTime;
+    
+    % Update visualization - Adjusted for I/O feedback linearization
+    viz(pose(:,idx) + [b*cos(pose(3,idx)); b*sin(pose(3,idx)); 0])
+    waitfor(r); 
+end

@@ -1,0 +1,60 @@
+% Initialize arrays to hold error values
+e_x_arr = zeros(1, numel(tVec));  % Error in x position
+e_y_arr = zeros(1, numel(tVec));  % Error in y position
+
+%% Simulation loop
+r = rateControl(1/sampleTime);
+for idx = 2:numel(tVec) 
+    % Get the current pose
+    currentPose = pose(:,idx-1);
+    
+    % Reference position
+    refX = refPosition(1,idx-1);
+    refY = refPosition(2,idx-1);
+    
+    % Compute the error between current and reference positions
+    e_x = refX - currentPose(1);
+    e_y = refY - currentPose(2);
+    
+    % Store the errors for plotting
+    e_x_arr(idx) = e_x;
+    e_y_arr(idx) = e_y;
+    
+    % Calculate desired velocities
+    v_desired = sqrt(e_x^2 + e_y^2);
+    theta_desired = atan2(e_y, e_x);
+    w_desired = (theta_desired - currentPose(3)) / sampleTime;  % Approximate angular velocity
+    
+    % Compute the wheel speeds using I/O feedback linearization
+    wL = (v_desired - (L/2) * w_desired) / R;
+    wR = (v_desired + (L/2) * w_desired) / R;
+    
+    % Compute the actual velocities for simulation
+    v = 0.5 * R * (wL + wR);
+    w = (wR - wL) * R / L;
+    velB = [v; 0; w];  % Body velocities [vx; vy; w]
+    vel = bodyToWorld(velB, currentPose);  % Convert from body to world frame
+    
+    % Perform forward discrete integration step
+    pose(:,idx) = currentPose + vel * sampleTime;
+    
+    % Update visualization - Adjusted for I/O feedback linearization
+    viz(pose(:,idx) + [b*cos(pose(3,idx)); b*sin(pose(3,idx)); 0])
+    waitfor(r); 
+end
+
+% Plotting the position error
+figure;
+subplot(2, 1, 1);
+plot(tVec, e_x_arr, 'b', 'LineWidth', 1.5);
+title('Position Error in X');
+xlabel('Time (s)');
+ylabel('Error in X (m)');
+grid on;
+
+subplot(2, 1, 2);
+plot(tVec, e_y_arr, 'g', 'LineWidth', 1.5);
+title('Position Error in Y');
+xlabel('Time (s)');
+ylabel('Error in Y (m)');
+grid on;
